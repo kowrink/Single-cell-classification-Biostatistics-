@@ -1,0 +1,78 @@
+---
+title: "Group_project"
+output: html_document
+---
+
+```{r}
+p1 = read.csv("sc_celseq2_5cl_p1.count.csv")
+p2 = read.csv("sc_celseq2_5cl_p2.count.csv")
+p3 = read.csv("sc_celseq2_5cl_p3.count.csv")
+p1_t=data.frame(t(p1))
+p2_t=data.frame(t(p2))
+p3_t=data.frame(t(p3))
+```
+
+
+```{r}
+name1=colnames(p1_t)
+name2=colnames(p2_t)
+name3=colnames(p3_t)
+name=c(name1,name2,name3)
+name = unique(name)
+```
+
+```{r}
+p1_t$id=(1:297)
+p2_t$id=(298:604)
+p3_t$id=(605:909)
+```
+
+```{r}
+fncols <- function(data, cname) {
+  add <-cname[!cname%in%names(data)]
+
+  if(length(add)!=0) data[add] <- NA
+  data
+}
+p1_t=fncols(p1_t, name)
+p2_t=fncols(p2_t, name)
+p3_t=fncols(p3_t, name)
+p=rbind(p1_t,p2_t,p3_t)
+p=p[,colSums(is.na(p))==0]
+```
+
+```{r}
+meta1 = read.csv("sc_celseq2_5cl_p1.metadata.csv")
+meta2 = read.csv("sc_celseq2_5cl_p2.metadata.csv")
+meta3 = read.csv("sc_celseq2_5cl_p3.metadata.csv")
+label1=meta1$cell_line_demuxlet
+label2=meta2$cell_line_demuxlet
+label3=meta3$cell_line_demuxlet
+p$label=c(label1,label2,label3)
+```
+
+```{r}
+p_test = data.frame(p$label, p)
+```
+
+```{r}
+p_test[,1][p_test$p.label == 1 ] = "A549"
+p_test[,1][p_test$p.label == 2 ] = "H1975"
+p_test[,1][p_test$p.label == 3 ] = "H2228"
+p_test[,1][p_test$p.label == 4 ] = "H838"
+p_test[,1][p_test$p.label == 5 ] = "HCC827"
+p_test = data.frame(rownames(p_test), p_test)
+rownames(p_test) <- do.call(paste,c(p_test[c("p.label", "rownames.p_test.")],sep="_"))
+p_test <- p_test[,!names(p_test) %in% c("rownames.p_test.","p.label")]
+p_test = p_test[,1:12653]
+```
+
+```{r}
+sample <- sample.int(n = nrow(p_test), size = floor(.8*nrow(p_test)), replace = F)
+train <- p_samll[sample, ]
+test  <- p_samll[-sample, ]
+test = t(test)
+train = t(train)
+```
+
+

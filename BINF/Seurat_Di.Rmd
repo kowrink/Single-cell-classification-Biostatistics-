@@ -1,0 +1,121 @@
+---
+title: "Seurat"
+output: html_document
+---
+
+### creat data matrix for training
+### training dataset: sc_celseq2_5cl_p2
+
+```{r}
+counts = read.csv("count2.csv")
+rnames = counts[,1]
+counts = data.matrix(counts[,2:ncol(counts)])
+rownames(counts) = rnames
+```
+
+### platform: Seurat
+### https://satijalab.org/seurat/v3.1/pbmc3k_tutorial.html
+```{r}
+library(Seurat)
+cc = CreateSeuratObject(counts = counts, project = "training" )
+```
+
+### nomrlisation and Scaling
+```{r}
+cc <- NormalizeData(cc, normalization.method = "LogNormalize", scale.factor = 10000)
+cc <- FindVariableFeatures(cc, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(cc)
+cc <- ScaleData(cc, features = all.genes)
+```
+
+### perform PCA on the scaled data
+```{r}
+cc <- RunPCA(cc, features = VariableFeatures(object = cc))
+```
+
+### visulisation
+```{r}
+DimPlot(cc, reduction = "pca")
+DimHeatmap(cc, dims = 1, cells = 500, balanced = TRUE)
+```
+
+### Cluster the cells
+### Seurat applies a graph-based clustering approach
+```{r}
+cc <- FindNeighbors(cc, dims = 1:10)
+cc <- FindClusters(cc, resolution = 0.5)
+cc <- RunUMAP(cc, dims = 1:10)
+```
+
+### Visulasition
+```{r}
+# DimPlot(cc, reduction = "umap")
+new.cluster.ids <- c("A549", "H838", "HCC827", "H2228", "H1975")
+names(new.cluster.ids) <- levels(cc)
+cc <- RenameIdents(cc, new.cluster.ids)
+DimPlot(cc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+### find the gene markers for classification
+```{r}
+cc.markers <- FindAllMarkers(cc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+### list top 2 gene markers for each cell type
+```{r}
+library(dplyr)
+marker_list = cc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+marker_list = marker_list[c("cluster", "gene")]
+marker_list
+```
+
+### Visulasition
+```{r}
+FeaturePlot(cc, features = c("ENSG00000151632", "ENSG00000165092", "ENSG00000224902", "ENSG00000216649", "ENSG00000146648", "ENSG00000132432", "ENSG00000019582", "ENSG00000163739", "ENSG00000100867", "ENSG00000169715"))
+```
+### heatmap
+```{r}
+top10 <- cc.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_logFC)
+DoHeatmap(cc, features = top10$gene) + NoLegend()
+```
+
+### testing dataset: sc_celseq2_5cl_p1
+```{r}
+newCounts = read.csv("sc_celseq2_5cl_p1.count.csv")
+rnames = newCounts[,1]
+newCounts= data.matrix(newCounts[,2:ncol(newCounts)])
+rownames(newCounts) = rnames
+```
+
+```{r}
+test = CreateSeuratObject(counts = newCounts, project = "test" )
+test <- NormalizeData(test, normalization.method = "LogNormalize", scale.factor = 10000)
+test <- FindVariableFeatures(test, selection.method = "vst", nfeatures = 2000)
+```
+```{r}
+all.genes <- rownames(test)
+test <- ScaleData(test, features = all.genes)
+test <- RunPCA(test, features = VariableFeatures(object = test))
+```
+
+
+```{r}
+test <- FindNeighbors(test, dims = 1:10)
+test <- FindClusters(test, resolution = 0.5)
+test <- RunUMAP(test, dims = 1:10)
+DimPlot(test, reduction = "umap")
+```
+
+### identify the clusters' cell types by matching gene markers from training dataset
+
+```{r}
+FeaturePlot(test, features = c("ENSG00000151632", "ENSG00000165092", "ENSG00000224902", "ENSG00000216649", "ENSG00000146648", "ENSG00000132432", "ENSG00000019582", "ENSG00000163739", "ENSG00000100867", "ENSG00000169715"), label = T)
+```
+
+```{r}
+test.cluster.ids <- c("A549", "H838", "H1975", "H2228", "HCC827")
+names(test.cluster.ids) <- levels(test)
+test <- RenameIdents(test, test.cluster.ids)
+DimPlot(test, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+
